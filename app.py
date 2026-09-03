@@ -32,7 +32,7 @@ TIPOS_PROPULSION = [
     "GNC / Nafta"
 ]
 
-URL_BASE_OFICIAL = "https://cuidandoelautogit-8v4ymcvnykvpasegqjvvp3.streamlit.app"
+URL_BASE_OFICIAL = "https://cuidando-el-auto-fwys72ynfql8qgxupsjr98.streamlit.app"
 
 def generar_qr_imagen(url_destino):
     qr = qrcode.QRCode(
