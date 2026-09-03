@@ -1,7 +1,9 @@
-# Let's generate a completely clean app.py with ZERO backslash-n escape artifacts or f-string splits.
-# We will verify compilation with py_compile.
+# Let's create an optimized mobile-first version of app.py:
+# 1. Custom CSS injecting bigger typography, touch-friendly buttons, and high readability for phones.
+# 2. Replacing horizontal tabs on "Tarjeta Digital" (PDF, Historial, Cliente, QR) with vertical layout (expanders or direct vertical sections) so users don't need horizontal scrolling.
+# 3. Ensuring 100% clean python syntax and compiling with py_compile.
 
-code_content = """import streamlit as st
+mobile_app_code = r'''import streamlit as st
 import pandas as pd
 import sqlite3
 import io
@@ -11,9 +13,41 @@ import urllib.parse
 from fpdf import FPDF
 from database import get_db, init_db
 
-# Configuracion inicial
+# Configuracion inicial optimizada
 st.set_page_config(page_title="Centro Tecnico Especializado", page_icon="⚡", layout="wide")
 init_db()
+
+# Inyeccion de CSS para vista movil comoda y legible
+st.markdown("""
+<style>
+    /* Aumento de tipografia y legibilidad general para celulares */
+    html, body, [class*="css"] {
+        font-size: 16px !important;
+    }
+    h1 {
+        font-size: 1.6rem !important;
+    }
+    h2, h3 {
+        font-size: 1.3rem !important;
+    }
+    p, label, span, input, select, textarea {
+        font-size: 1.05rem !important;
+    }
+    /* Botones mas grandes y comodos para tocar con el pulgar */
+    .stButton > button {
+        width: 100%;
+        padding: 12px 20px !important;
+        font-size: 1.1rem !important;
+        border-radius: 8px !important;
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+    /* Espaciado de metricas y semaforos */
+    [data-testid="stMetricValue"] {
+        font-size: 1.4rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 CATEGORIAS_TALLER = [
     "💻 Soluciones Electronicas (DPF / EGR / Urea-AdBlue Off / Modulos)",
@@ -130,103 +164,130 @@ opcion = st.sidebar.radio(
     ]
 )
 
-# 1. TARJETA DIGITAL
+# -------------------------------------------------------------
+# 1. TARJETA DIGITAL (DISEÑO VERTICAL COMODO PARA CELULARES)
+# -------------------------------------------------------------
 if opcion == "📋 Tarjeta Digital del Vehiculo":
     st.title("📋 Ficha Tecnica y Libreta Digital")
+    
     query_params = st.query_params
     patente_url = query_params.get("patente", "").upper()
     patente_buscada = st.text_input("Ingresa la Patente del Vehiculo:", value=patente_url).upper().strip()
+    
     if patente_buscada:
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("SELECT v.*, c.nombre, c.telefono, c.localidad FROM vehiculos v LEFT JOIN clientes c ON v.cliente_id = c.id WHERE v.patente = ?", (patente_buscada,))
         vehiculo = cursor.fetchone()
+        
         if vehiculo:
-            st.success(f"### {vehiculo['marca']} {vehiculo['modelo']} ({vehiculo['anio']}) — Patente: `{vehiculo['patente']}`")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Propulsion", vehiculo['tipo_propulsion'])
+            st.success(f"### {vehiculo['marca']} {vehiculo['modelo']} ({vehiculo['anio']})\n**Patente:** `{vehiculo['patente']}`")
+            
+            # Datos principales en tarjetas verticales/responsive
+            c1, c2 = st.columns(2)
+            c1.metric("KM Odometro", f"{vehiculo['km_actuales']:,} km")
             c2.metric("Motor", vehiculo['motor'] or "N/D")
-            c3.metric("KM Odometro", f"{vehiculo['km_actuales']:,} km")
+            
+            c3, c4 = st.columns(2)
+            c3.metric("Propulsion", vehiculo['tipo_propulsion'])
             c4.metric("Titular", vehiculo['nombre'])
+            
             tel_clean = str(vehiculo['telefono']).replace("+", "").replace("-", "").replace(" ", "").strip()
             link_directo_auto = f"{URL_BASE_OFICIAL}/?patente={vehiculo['patente']}"
-            msj_bienvenida = f"Hola {vehiculo['nombre']}! Te dejamos el enlace a la Libreta de Servicio Digital de tu {vehiculo['marca']} {vehiculo['modelo']} ({vehiculo['patente']}). Podes consultar historiales tecnicos, comprobantes PDF y cargar services: {link_directo_auto}"
+            msj_bienvenida = f"Hola {vehiculo['nombre']}! Te dejamos el enlace a la Libreta de Servicio Digital de tu {vehiculo['marca']} {vehiculo['modelo']} ({vehiculo['patente']}). Podes consultar historiales tecnicos, comprobantes PDF y cargar tus services: {link_directo_auto}"
             link_wa = "https://wa.me/" + tel_clean + "?text=" + urllib.parse.quote(msj_bienvenida)
-            col_b1, col_b2 = st.columns([1, 1])
-            col_b1.markdown(f'<a href="{link_wa}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">📲 Compartir Libreta Digital por WhatsApp</button></a>', unsafe_allow_html=True)
+            
+            st.markdown(f'<a href="{link_wa}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:12px 16px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; font-size:1.1rem; margin-top:10px; margin-bottom:15px;">📲 Compartir Libreta por WhatsApp</button></a>', unsafe_allow_html=True)
+            
             st.markdown("---")
             st.subheader("🚦 Estado de Mantenimientos Preventivos")
             km_act = vehiculo['km_actuales'] or 0
+            
+            # Semáforo Preventivo Vertical
             col_a, col_b, col_c = st.columns(3)
             int_aceite = vehiculo['intervalo_aceite_km'] or 10000
             rest_aceite = int_aceite - (km_act % int_aceite)
-            col_a.metric("Service Aceite y Filtros", f"En {rest_aceite:,} km", delta=f"-{rest_aceite} km" if rest_aceite < 1500 else None)
+            col_a.metric("🛢️ Aceite y Filtros", f"En {rest_aceite:,} km", delta=f"-{rest_aceite} km" if rest_aceite < 1500 else None)
+            
             int_bujias = vehiculo['intervalo_bujias_km'] or 0
             if "100% Electrico" in str(vehiculo['tipo_propulsion']) or (vehiculo['tipo_propulsion'] == "Turbodiesel Common Rail" and int_bujias == 0):
-                col_b.metric("Bujias de Encendido", "No Aplica")
+                col_b.metric("⚡ Bujias Encendido", "No Aplica")
             elif int_bujias > 0:
                 rest_buj = int_bujias - (km_act % int_bujias)
-                col_b.metric("Bujias de Encendido", f"En {rest_buj:,} km", delta=f"-{rest_buj} km" if rest_buj < 2500 else None)
+                col_b.metric("⚡ Bujias Encendido", f"En {rest_buj:,} km", delta=f"-{rest_buj} km" if rest_buj < 2500 else None)
             else:
-                col_b.metric("Bujias de Encendido", "No Configurado")
+                col_b.metric("⚡ Bujias Encendido", "No Configurado")
+                
             int_dist = vehiculo['intervalo_distribucion_km'] or 0
             if int_dist == 0:
-                col_c.metric("Distribucion", "Cadena / Libre Mant.")
+                col_c.metric("⚙️ Distribucion", "Cadena / Libre Mant.")
             else:
                 rest_dist = int_dist - (km_act % int_dist)
-                col_c.metric("Kit de Distribucion", f"En {rest_dist:,} km", delta=f"-{rest_dist} km" if rest_dist < 5000 else None)
+                col_c.metric("⚙️ Distribucion", f"En {rest_dist:,} km", delta=f"-{rest_dist} km" if rest_dist < 5000 else None)
+            
             st.markdown("---")
-            tab_taller, tab_externo, tab_carga_cliente, tab_qr = st.tabs([
-                "⚡ Trabajos del Centro Tecnico (Con PDF)",
-                "📝 Historial Mantenimientos Externos",
-                "➕ Cliente: Anotar Mantenimiento Externo",
-                "🖨️ Generador de Codigo QR"
-            ])
-            with tab_taller:
+            
+            # -------------------------------------------------------------
+            # SECCIONES EN COLUMNA VERTICAL (DESPLEGABLES / EXPANDERS)
+            # -------------------------------------------------------------
+            
+            # 1. TRABAJOS DEL CENTRO TÉCNICO (CON PDF)
+            with st.expander("📄 1. Informes y Trabajos del Taller (Descargar PDF)", expanded=True):
                 cursor.execute("SELECT * FROM servicios_taller WHERE patente = ? ORDER BY fecha DESC, id DESC", (patente_buscada,))
                 servicios_t = cursor.fetchall()
                 if servicios_t:
                     for st_item in servicios_t:
-                        with st.expander(f"📅 {st_item['fecha']} — {st_item['categoria']} ({st_item['km_servicio']:,} km)"):
-                            if st_item['diagnostico_dtc']:
-                                st.info(f"**DTC / Diagnostico [{st_item['estado_dtc']}]:** {st_item['diagnostico_dtc']}")
-                            if st_item['parametros_tecnicos']:
-                                st.success(f"**Parametros / Mediciones Tecnicas:** {st_item['parametros_tecnicos']}")
-                            if st_item['software_version']:
-                                st.warning(f"**Calibracion / Backup Software ECU:** {st_item['software_version']}")
-                            st.write(f"**Procedimiento:** {st_item['trabajo_realizado']}")
-                            if st_item['repuestos_utilizados']:
-                                st.write(f"**Repuestos / Materiales:** {st_item['repuestos_utilizados']}")
-                            st.caption(f"Garantia: {st_item['garantia']} | Total: ${st_item['costo_total']:,.2f}")
-                            pdf_bytes = generar_pdf_intervencion(vehiculo, st_item)
-                            st.download_button(label="📄 Descargar Informe Tecnico en PDF", data=pdf_bytes, file_name=f"Informe_{patente_buscada}_{st_item['fecha']}.pdf", mime="application/pdf", key=f"pdf_{st_item['id']}")
+                        st.markdown(f"#### 📅 {st_item['fecha']} — {st_item['categoria']}")
+                        st.write(f"**Kilometraje:** {st_item['km_servicio']:,} km")
+                        if st_item['diagnostico_dtc']:
+                            st.info(f"**DTC / Diagnostico [{st_item['estado_dtc']}]:** {st_item['diagnostico_dtc']}")
+                        if st_item['parametros_tecnicos']:
+                            st.success(f"**Parametros / Mediciones:** {st_item['parametros_tecnicos']}")
+                        if st_item['software_version']:
+                            st.warning(f"**Calibracion Software ECU:** {st_item['software_version']}")
+                        st.write(f"**Trabajo:** {st_item['trabajo_realizado']}")
+                        if st_item['repuestos_utilizados']:
+                            st.write(f"**Repuestos / Materiales:** {st_item['repuestos_utilizados']}")
+                        st.caption(f"Garantia: {st_item['garantia']} | Costo: ${st_item['costo_total']:,.2f}")
+                        
+                        pdf_bytes = generar_pdf_intervencion(vehiculo, st_item)
+                        st.download_button(
+                            label="⬇️ Descargar Informe Tecnico (PDF)",
+                            data=pdf_bytes,
+                            file_name=f"Informe_{patente_buscada}_{st_item['fecha']}.pdf",
+                            mime="application/pdf",
+                            key=f"pdf_{st_item['id']}"
+                        )
+                        st.divider()
                 else:
-                    st.info("No hay intervenciones registradas por el centro tecnico todavia.")
-            with tab_externo:
+                    st.info("No hay intervenciones oficiales registradas todavia.")
+
+            # 2. HISTORIAL DE MANTENIMIENTOS EXTERNOS
+            with st.expander("📝 2. Historial de Mantenimientos Externos", expanded=False):
                 cursor.execute("SELECT * FROM servicios_externos WHERE patente = ? ORDER BY fecha DESC, id DESC", (patente_buscada,))
                 servicios_e = cursor.fetchall()
                 if servicios_e:
                     for se in servicios_e:
                         st.markdown(f"**📅 {se['fecha']} — {se['tipo_mantenimiento']} ({se['km_servicio']:,} km)**")
-                        st.write(f"📍 **Lugar / Establecimiento:** {se['establecimiento'] or 'Particular'}")
-                        st.write("**Elementos Realizados / Insumos:**")
+                        st.write(f"📍 **Lugar:** {se['establecimiento'] or 'Particular'}")
+                        st.write("**Detalle realizado:**")
                         st.text(se['detalle_materiales'])
                         st.divider()
                 else:
                     st.info("El titular no ha registrado mantenimientos externos todavia.")
-            with tab_carga_cliente:
-                st.write("### 📝 Planilla de Registro de Mantenimiento Externo")
-                st.caption("Marca los casilleros correspondientes a lo que se reemplazo en el vehiculo:")
+
+            # 3. CLIENTE: ANOTAR MANTENIMIENTO
+            with st.expander("➕ 3. Anotar Nuevo Mantenimiento (Cliente / Lubricentro)", expanded=False):
+                st.write("Completa los items reemplazados para actualizar la libreta digital:")
                 with st.form("form_cliente_externo", clear_on_submit=True):
-                    col_f1, col_f2, col_f3 = st.columns(3)
-                    f_ext = col_f1.date_input("Fecha de realizacion:", date.today())
-                    km_ext = col_f2.number_input("Kilometraje actual:", min_value=int(km_act), value=int(km_act), step=500)
-                    lugar_ext = col_f3.text_input("Lugar / Lubricentro / Taller:", placeholder="Ej: Lubricentro San Martin")
+                    f_ext = st.date_input("Fecha de realizacion:", date.today())
+                    km_ext = st.number_input("Kilometraje actual:", min_value=int(km_act), value=int(km_act), step=500)
+                    lugar_ext = st.text_input("Lugar / Lubricentro / Taller:", placeholder="Ej: Lubricentro San Martin")
+                    
                     st.markdown("---")
-                    st.markdown("#### ✅ Items Realizados")
-                    r1_col1, r1_col2 = st.columns([1, 2])
-                    chk_aceite = r1_col1.checkbox("🛢️ Aceite de Motor")
-                    txt_aceite = r1_col2.text_input("Tipo / Marca de Aceite:", placeholder="Ej: Elaion F50 5W-40", disabled=not chk_aceite)
+                    st.markdown("**Marcar lo que se cambio:**")
+                    chk_aceite = st.checkbox("🛢️ Aceite de Motor")
+                    txt_aceite = st.text_input("Tipo / Marca de Aceite:", placeholder="Ej: Elaion F50 5W-40", disabled=not chk_aceite)
                     chk_f_aceite = st.checkbox("🛢️ Filtro de Aceite")
                     chk_f_aire = st.checkbox("💨 Filtro de Aire de Motor")
                     chk_f_comb = st.checkbox("⛽ Filtro de Combustible (Nafta / Gasoil)")
@@ -236,9 +297,10 @@ if opcion == "📋 Tarjeta Digital del Vehiculo":
                     chk_frenos = st.checkbox("🛑 Pastillas / Discos de Freno")
                     chk_bat = st.checkbox("🔋 Reemplazo de Bateria 12V")
                     chk_neu = st.checkbox("🚗 Alineacion / Balanceo de Neumaticos")
-                    st.markdown("---")
-                    obs_extra = st.text_area("Notas adicionales (Opcional):", placeholder="Ej: Cambio de escobillas limpiaparabrisas...")
-                    btn_guardar_ext = st.form_submit_button("💾 Guardar en Libreta Digital y Actualizar KM")
+                    
+                    obs_extra = st.text_area("Notas adicionales (Opcional):", placeholder="Ej: Escobillas, lamparitas...")
+                    btn_guardar_ext = st.form_submit_button("💾 Guardar Mantenimiento en la Libreta")
+                    
                     if btn_guardar_ext:
                         items_cambiados = []
                         if chk_aceite: items_cambiados.append(f"• Aceite de Motor ({txt_aceite if txt_aceite else 'Realizado'})")
@@ -252,10 +314,11 @@ if opcion == "📋 Tarjeta Digital del Vehiculo":
                         if chk_bat: items_cambiados.append("• Bateria 12V")
                         if chk_neu: items_cambiados.append("• Alineacion / Neumaticos")
                         if obs_extra: items_cambiados.append(f"• Notas: {obs_extra}")
+                        
                         if not items_cambiados:
                             st.warning("Por favor marca al menos un casillero o escribi una observacion.")
                         else:
-                            detalle_final = "\\n".join(items_cambiados)
+                            detalle_final = "\n".join(items_cambiados)
                             titulo_servicio = "Service de Aceite y Filtros" if chk_aceite and (chk_f_aceite or chk_f_aire) else ("Distribucion / Refrigeracion" if chk_dist or chk_bomba else "Service Lubricentro / Mecanica")
                             cursor.execute("INSERT INTO servicios_externos (patente, fecha, km_servicio, tipo_mantenimiento, establecimiento, detalle_materiales) VALUES (?, ?, ?, ?, ?, ?)", (patente_buscada, str(f_ext), int(km_ext), titulo_servicio, lugar_ext, detalle_final))
                             if km_ext > km_act:
@@ -263,26 +326,29 @@ if opcion == "📋 Tarjeta Digital del Vehiculo":
                             conn.commit()
                             st.success("✅ Mantenimiento guardado y kilometraje actualizado.")
                             st.rerun()
-            with tab_qr:
-                st.write("### 🖨️ Generador de Codigo QR para Sticker del Auto")
+
+            # 4. CÓDIGO QR PARA STICKER
+            with st.expander("🖨️ 4. Generador de Codigo QR para Sticker", expanded=False):
                 host_ip = st.text_input("Direccion Web del Taller:", value=URL_BASE_OFICIAL)
                 url_qr = f"{host_ip.rstrip('/')}/?patente={patente_buscada}"
                 qr_bytes = generar_qr_imagen(url_qr)
-                col_qr1, col_qr2 = st.columns([1, 2])
-                col_qr1.image(qr_bytes, caption=f"QR Patente: {patente_buscada}", width=200)
-                col_qr2.write(f"**Enlace codificado:** `{url_qr}`")
-                col_qr2.download_button(label="⬇️ Descargar Imagen QR (PNG) para Imprimir", data=qr_bytes, file_name=f"QR_{patente_buscada}.png", mime="image/png")
+                st.image(qr_bytes, caption=f"QR Patente: {patente_buscada}", width=220)
+                st.download_button(label="⬇️ Descargar Imagen QR (PNG)", data=qr_bytes, file_name=f"QR_{patente_buscada}.png", mime="image/png")
+
         else:
             st.warning("No se encontro ningun vehiculo con esa patente.")
         conn.close()
 
+# -------------------------------------------------------------
 # 2. CARGAR TRABAJO DE TALLER
+# -------------------------------------------------------------
 elif opcion == "🛠️ Cargar Trabajo de Taller":
-    st.title("🛠️ Registrar Intervencion Oficial del Taller")
+    st.title("🛠️ Registrar Intervencion del Taller")
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT patente, marca, modelo, km_actuales FROM vehiculos ORDER BY patente")
     autos = cursor.fetchall()
+    
     if not autos:
         st.warning("Primero debes registrar al menos un vehiculo.")
     else:
@@ -290,39 +356,41 @@ elif opcion == "🛠️ Cargar Trabajo de Taller":
         sel_auto = st.selectbox("Seleccionar Vehiculo:", list(mapa_autos.keys()))
         auto_data = mapa_autos[sel_auto]
         patente_sel = auto_data['patente']
+        
         with st.form("form_taller", clear_on_submit=True):
-            c1, c2 = st.columns(2)
-            fecha_t = c1.date_input("Fecha:", date.today())
-            km_t = c2.number_input("Kilometraje actual:", min_value=int(auto_data['km_actuales'] or 0), value=int(auto_data['km_actuales'] or 0), step=500)
+            fecha_t = st.date_input("Fecha:", date.today())
+            km_t = st.number_input("Kilometraje actual:", min_value=int(auto_data['km_actuales'] or 0), value=int(auto_data['km_actuales'] or 0), step=500)
             cat_t = st.selectbox("Especialidad:", CATEGORIAS_TALLER)
-            c_dtc1, c_dtc2 = st.columns([3, 1])
-            dtc_t = c_dtc1.text_input("Codigos DTC / Diagnostico previo:", placeholder="Ej: P2463 (DPF), P0401 (EGR), C0035 (ABS), Lampara")
-            estado_dtc = c_dtc2.selectbox("Estado DTC:", ["Resuelto", "En Seguimiento", "Preventivo", "No aplica"])
+            
+            dtc_t = st.text_input("Codigos DTC / Diagnostico previo:", placeholder="Ej: P2463 (DPF), P0401 (EGR), C0035 (ABS), Lampara")
+            estado_dtc = st.selectbox("Estado DTC:", ["Resuelto", "En Seguimiento", "Preventivo", "No aplica"])
+            
             st.markdown("##### 📊 Parametros Tecnicos & Mediciones (Opcional)")
             if "Hibridos" in cat_t:
-                p_c1, p_c2, p_c3 = st.columns(3)
-                soh = p_c1.text_input("SOH Bateria (%):", placeholder="Ej: 88%")
-                delta_v = p_c2.text_input("Delta V Celdas (V):", placeholder="Ej: 0.02V")
-                aisl = p_c3.text_input("Resistencia Aislamiento (MΩ):", placeholder="Ej: > 500 MΩ")
+                soh = st.text_input("SOH Bateria (%):", placeholder="Ej: 88%")
+                delta_v = st.text_input("Delta V Celdas (V):", placeholder="Ej: 0.02V")
+                aisl = st.text_input("Resistencia Aislamiento (MΩ):", placeholder="Ej: > 500 MΩ")
                 params_str = f"SOH: {soh} | Delta V: {delta_v} | Aislamiento: {aisl}" if (soh or delta_v or aisl) else ""
             elif "Aire" in cat_t:
-                p_c1, p_c2, p_c3, p_c4 = st.columns(4)
-                p_baja = p_c1.text_input("Presion Baja (PSI):", placeholder="Ej: 32 PSI")
-                p_alta = p_c2.text_input("Presion Alta (PSI):", placeholder="Ej: 210 PSI")
-                gas_g = p_c3.text_input("Carga Gas (gramos):", placeholder="Ej: 500g R134a")
-                temp_tob = p_c4.text_input("Temp. Tobera (°C):", placeholder="Ej: 6.5°C")
+                p_baja = st.text_input("Presion Baja (PSI):", placeholder="Ej: 32 PSI")
+                p_alta = st.text_input("Presion Alta (PSI):", placeholder="Ej: 210 PSI")
+                gas_g = st.text_input("Carga Gas (gramos):", placeholder="Ej: 500g R134a")
+                temp_tob = st.text_input("Temp. Tobera (°C):", placeholder="Ej: 6.5°C")
                 params_str = f"Baja: {p_baja} | Alta: {p_alta} | Carga: {gas_g} | Tobera: {temp_tob}" if (p_baja or p_alta or gas_g or temp_tob) else ""
             else:
-                params_str = st.text_input("Mediciones / Parametros leidos:", placeholder="Ej: Caudal inyectores, caida de tension alternador 14.2V...")
+                params_str = st.text_input("Mediciones / Parametros leidos:", placeholder="Ej: Caudal inyectores, caida tension 14.2V...")
+
             sw_ecu = ""
             if "Soluciones Electronicas" in cat_t or "Modulos" in cat_t:
-                sw_ecu = st.text_input("Identificacion Software ECU / Backup:", placeholder="Ej: SW: 1037395214 / Backup: Hilux_2.8_DPF_OFF.bin")
+                sw_ecu = st.text_input("Identificacion Software ECU / Backup:", placeholder="Ej: Hilux_2.8_DPF_OFF.bin")
+            
             trabajo_t = st.text_area("Trabajo realizado / Procedimiento:*", placeholder="Describi la reparacion o procedimiento...")
-            repuestos_t = st.text_area("Repuestos / Insumos instalados:", placeholder="Ej: Lampara H7 Osram, Sensor MAF Bosch, Carga R134a...")
-            c3, c4, c5 = st.columns(3)
-            garantia_t = c3.selectbox("Garantia:", ["3 Meses", "6 Meses", "12 Meses", "Garantia de Fabrica", "Sin garantia especial"])
-            prox_km = c4.number_input("Proximo control (KM) - 0 si no aplica:", min_value=0, step=5000, value=0)
-            costo_t = c5.number_input("Costo Total ($):", min_value=0.0, step=1000.0)
+            repuestos_t = st.text_area("Repuestos / Insumos instalados:", placeholder="Ej: Sensor MAF, Lámpara H7, Gas R134a...")
+            
+            garantia_t = st.selectbox("Garantia:", ["3 Meses", "6 Meses", "12 Meses", "Garantia de Fabrica", "Sin garantia especial"])
+            prox_km = st.number_input("Proximo control (KM) - 0 si no aplica:", min_value=0, step=5000, value=0)
+            costo_t = st.number_input("Costo Total ($):", min_value=0.0, step=1000.0)
+            
             btn_guardar_taller = st.form_submit_button("💾 Guardar Trabajo y Actualizar Odometro")
             if btn_guardar_taller:
                 if trabajo_t:
@@ -334,19 +402,28 @@ elif opcion == "🛠️ Cargar Trabajo de Taller":
                     st.error("El campo 'Trabajo realizado' es obligatorio.")
     conn.close()
 
-# 3. REGISTRAR Y MODIFICAR DATOS
+# -------------------------------------------------------------
+# 3. REGISTRAR Y MODIFICAR DATOS (CLIENTES, AUTOS E INTERVALOS)
+# -------------------------------------------------------------
 elif opcion == "➕ Registrar y Modificar Datos":
-    st.title("➕ Gestion Integral de Clientes y Vehiculos")
-    tab1, tab2, tab3, tab4 = st.tabs(["👤 Alta de Cliente", "🚗 Alta de Vehiculo", "✏️ Modificar Vehiculo", "✏️ Modificar Cliente"])
+    st.title("➕ Gestion de Clientes y Vehiculos")
+    
+    sec_gestion = st.radio(
+        "Selecciona la operacion a realizar:",
+        ["👤 Alta de Cliente", "🚗 Alta de Vehiculo", "✏️ Modificar Vehiculo", "✏️ Modificar Cliente"],
+        horizontal=True
+    )
+    
     conn = get_db()
     cursor = conn.cursor()
-    with tab1:
+    
+    # 1. Alta de Cliente
+    if sec_gestion == "👤 Alta de Cliente":
         with st.form("form_alta_cli", clear_on_submit=True):
-            c1, c2 = st.columns(2)
-            nom = c1.text_input("Nombre y Apellido / Empresa:*")
-            tel = c2.text_input("Telefono / WhatsApp:* (Ej: 2296123456)")
-            dire = c1.text_input("Direccion:")
-            loc = c2.text_input("Localidad:", value="Ayacucho")
+            nom = st.text_input("Nombre y Apellido / Empresa:*")
+            tel = st.text_input("Telefono / WhatsApp:* (Ej: 2296123456)")
+            dire = st.text_input("Direccion:")
+            loc = st.text_input("Localidad:", value="Ayacucho")
             if st.form_submit_button("Guardar Cliente"):
                 if nom and tel:
                     cursor.execute("INSERT INTO clientes (nombre, telefono, direccion, localidad) VALUES (?, ?, ?, ?)", (nom, tel, dire, loc))
@@ -354,27 +431,28 @@ elif opcion == "➕ Registrar y Modificar Datos":
                     st.success(f"Cliente '{nom}' guardado correctamente.")
                 else:
                     st.error("Nombre y Telefono son obligatorios.")
-    with tab2:
+
+    # 2. Alta de Vehículo
+    elif sec_gestion == "🚗 Alta de Vehiculo":
         cursor.execute("SELECT id, nombre, telefono FROM clientes ORDER BY nombre")
         clientes_db = cursor.fetchall()
         if clientes_db:
             map_c = {f"{c['nombre']} ({c['telefono']})": c['id'] for c in clientes_db}
             with st.form("form_alta_veh", clear_on_submit=True):
                 cli_sel = st.selectbox("Titular:", list(map_c.keys()))
-                c1, c2, c3 = st.columns(3)
-                pat = c1.text_input("Patente:*").upper().strip()
-                mar = c2.text_input("Marca:* (Ej: Fiat, Toyota, VW)")
-                mod = c3.text_input("Modelo:* (Ej: Fiorino, Hilux, Gol)")
-                c4, c5, c6 = st.columns(3)
-                ani = c4.number_input("Año:", min_value=1980, max_value=date.today().year + 1, value=2010)
-                prop = c5.selectbox("Propulsion:", TIPOS_PROPULSION)
-                mot = c6.text_input("Motorizacion:", placeholder="Ej: 1.3 Fire, 2.8 CTDI, 1.4 TSI")
+                pat = st.text_input("Patente:*").upper().strip()
+                mar = st.text_input("Marca:* (Ej: Fiat, Toyota, VW)")
+                mod = st.text_input("Modelo:* (Ej: Fiorino, Hilux, Gol)")
+                ani = st.number_input("Año:", min_value=1980, max_value=date.today().year + 1, value=2010)
+                prop = st.selectbox("Propulsion:", TIPOS_PROPULSION)
+                mot = st.text_input("Motorizacion:", placeholder="Ej: 1.3 Fire, 2.8 CTDI, 1.4 TSI")
                 km_ini = st.number_input("KM Inicial:", min_value=0, step=1000)
-                st.markdown("#### ⚙️ Plan de Mantenimiento Especifico para este Modelo")
-                col_i1, col_i2, col_i3 = st.columns(3)
-                int_aceite = col_i1.number_input("Intervalo Aceite (KM):", value=10000, step=1000)
-                int_dist = col_i2.number_input("Intervalo Distribucion (KM) - 0 si es cadena:", value=60000, step=10000)
-                int_buj = col_i3.number_input("Intervalo Bujias (KM) - 0 si no aplica:", value=30000 if "Nafta" in prop else 0, step=10000)
+                
+                st.markdown("#### ⚙️ Plan de Mantenimiento (KM)")
+                int_aceite = st.number_input("Intervalo Aceite (KM):", value=10000, step=1000)
+                int_dist = st.number_input("Intervalo Distribucion (KM) - 0 si es cadena:", value=60000, step=10000)
+                int_buj = st.number_input("Intervalo Bujias (KM) - 0 si no aplica:", value=30000 if "Nafta" in prop else 0, step=10000)
+                
                 if st.form_submit_button("Guardar Vehiculo"):
                     if pat and mar and mod:
                         try:
@@ -387,7 +465,9 @@ elif opcion == "➕ Registrar y Modificar Datos":
                         st.error("Patente, Marca y Modelo son obligatorios.")
         else:
             st.info("Primero registra al menos un cliente.")
-    with tab3:
+
+    # 3. Modificar Vehículo Existente
+    elif sec_gestion == "✏️ Modificar Vehiculo":
         cursor.execute("SELECT patente, marca, modelo FROM vehiculos ORDER BY patente")
         vehiculos_edit = cursor.fetchall()
         if vehiculos_edit:
@@ -398,23 +478,23 @@ elif opcion == "➕ Registrar y Modificar Datos":
             v_curr = cursor.fetchone()
             if v_curr:
                 with st.form("form_editar_veh"):
-                    st.write(f"### Editando datos de la Patente: `{pat_a_modificar}`")
-                    e_c1, e_c2 = st.columns(2)
-                    e_mar = e_c1.text_input("Marca:", value=v_curr['marca'])
-                    e_mod = e_c2.text_input("Modelo:", value=v_curr['modelo'])
-                    e_c3, e_c4, e_c5 = st.columns(3)
-                    e_ani = e_c3.number_input("Año:", min_value=1980, max_value=date.today().year + 1, value=int(v_curr['anio'] or 2010))
+                    st.write(f"### Editando Patente: `{pat_a_modificar}`")
+                    e_mar = st.text_input("Marca:", value=v_curr['marca'])
+                    e_mod = st.text_input("Modelo:", value=v_curr['modelo'])
+                    e_ani = st.number_input("Año:", min_value=1980, max_value=date.today().year + 1, value=int(v_curr['anio'] or 2010))
+                    
                     idx_prop = 0
                     if v_curr['tipo_propulsion'] in TIPOS_PROPULSION:
                         idx_prop = TIPOS_PROPULSION.index(v_curr['tipo_propulsion'])
-                    e_prop = e_c4.selectbox("Propulsion:", TIPOS_PROPULSION, index=idx_prop)
-                    e_mot = e_c5.text_input("Motor:", value=v_curr['motor'] or "")
+                    e_prop = st.selectbox("Propulsion:", TIPOS_PROPULSION, index=idx_prop)
+                    e_mot = st.text_input("Motor:", value=v_curr['motor'] or "")
                     e_km = st.number_input("Kilometraje Actual:", min_value=0, value=int(v_curr['km_actuales'] or 0), step=1000)
-                    st.markdown("#### ⚙️ Ajustar Intervalos de Mantenimiento (KM)")
-                    col_ei1, col_ei2, col_ei3 = st.columns(3)
-                    e_int_aceite = col_ei1.number_input("Intervalo Aceite (KM):", value=int(v_curr['intervalo_aceite_km'] or 10000), step=1000)
-                    e_int_dist = col_ei2.number_input("Intervalo Distribucion (KM) - 0 si es cadena:", value=int(v_curr['intervalo_distribucion_km'] or 60000), step=10000)
-                    e_int_buj = col_ei3.number_input("Intervalo Bujias (KM) - 0 si no aplica:", value=int(v_curr['intervalo_bujias_km'] or 30000), step=5000)
+                    
+                    st.markdown("#### ⚙️ Ajustar Intervalos (KM)")
+                    e_int_aceite = st.number_input("Intervalo Aceite (KM):", value=int(v_curr['intervalo_aceite_km'] or 10000), step=1000)
+                    e_int_dist = st.number_input("Intervalo Distribucion (KM) - 0 si es cadena:", value=int(v_curr['intervalo_distribucion_km'] or 60000), step=10000)
+                    e_int_buj = st.number_input("Intervalo Bujias (KM) - 0 si no aplica:", value=int(v_curr['intervalo_bujias_km'] or 30000), step=5000)
+                    
                     if st.form_submit_button("💾 Guardar Cambios del Vehiculo"):
                         cursor.execute("UPDATE vehiculos SET marca = ?, modelo = ?, anio = ?, tipo_propulsion = ?, motor = ?, km_actuales = ?, intervalo_aceite_km = ?, intervalo_distribucion_km = ?, intervalo_bujias_km = ? WHERE patente = ?", (e_mar, e_mod, int(e_ani), e_prop, e_mot, int(e_km), int(e_int_aceite), int(e_int_dist), int(e_int_buj), pat_a_modificar))
                         conn.commit()
@@ -422,7 +502,9 @@ elif opcion == "➕ Registrar y Modificar Datos":
                         st.rerun()
         else:
             st.info("No hay vehiculos registrados para modificar.")
-    with tab4:
+
+    # 4. Modificar Cliente Existente
+    elif sec_gestion == "✏️ Modificar Cliente":
         cursor.execute("SELECT id, nombre, telefono, direccion, localidad FROM clientes ORDER BY nombre")
         clientes_edit = cursor.fetchall()
         if clientes_edit:
@@ -431,11 +513,10 @@ elif opcion == "➕ Registrar y Modificar Datos":
             cli_data = map_cli_edit[sel_cli_name]
             with st.form("form_editar_cliente"):
                 st.write(f"### Editando datos de: `{cli_data['nombre']}`")
-                ec_1, ec_2 = st.columns(2)
-                nuevo_nom = ec_1.text_input("Nombre y Apellido / Empresa:", value=cli_data['nombre'])
-                nuevo_tel = ec_2.text_input("Telefono / WhatsApp:", value=cli_data['telefono'])
-                nuevo_dir = ec_1.text_input("Direccion:", value=cli_data['direccion'] or "")
-                nueva_loc = ec_2.text_input("Localidad:", value=cli_data['localidad'] or "Ayacucho")
+                nuevo_nom = st.text_input("Nombre y Apellido / Empresa:", value=cli_data['nombre'])
+                nuevo_tel = st.text_input("Telefono / WhatsApp:", value=cli_data['telefono'])
+                nuevo_dir = st.text_input("Direccion:", value=cli_data['direccion'] or "")
+                nueva_loc = st.text_input("Localidad:", value=cli_data['localidad'] or "Ayacucho")
                 if st.form_submit_button("💾 Guardar Cambios del Cliente"):
                     if nuevo_nom and nuevo_tel:
                         cursor.execute("UPDATE clientes SET nombre = ?, telefono = ?, direccion = ?, localidad = ? WHERE id = ?", (nuevo_nom, nuevo_tel, nuevo_dir, nueva_loc, cli_data['id']))
@@ -448,9 +529,11 @@ elif opcion == "➕ Registrar y Modificar Datos":
             st.info("No hay clientes registrados para modificar.")
     conn.close()
 
+# -------------------------------------------------------------
 # 4. ALERTAS PREVENTIVAS
+# -------------------------------------------------------------
 elif opcion == "🔔 Alertas Preventivas (30 Dias)":
-    st.title("🔔 Panel de Alertas y Recordatorios Preventivos")
+    st.title("🔔 Panel de Alertas Preventivas")
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT v.*, c.nombre, c.telefono FROM vehiculos v LEFT JOIN clientes c ON v.cliente_id = c.id ORDER BY v.patente")
@@ -464,31 +547,32 @@ elif opcion == "🔔 Alertas Preventivas (30 Dias)":
             if v['intervalo_bujias_km'] and v['intervalo_bujias_km'] > 0:
                 rest_buj = v['intervalo_bujias_km'] - (km % v['intervalo_bujias_km'])
                 if rest_buj <= 2500:
-                    alertas_generadas.append({"Patente": v['patente'], "Vehiculo": f"{v['marca']} {v['modelo']}", "Cliente": nombre_cli, "Telefono": tel, "Alerta": "⚡ Cambio / Control de Bujias", "Detalle": f"Faltan aprox. {rest_buj:,} km", "Mensaje": f"Hola {nombre_cli}! Te recordamos desde el Centro Tecnico que tu {v['marca']} {v['modelo']} ({v['patente']}) esta proximo al recambio preventivo de bujias ({km:,} km). Queres que te reservemos un turno?"})
+                    alertas_generadas.append({"Patente": v['patente'], "Vehiculo": f"{v['marca']} {v['modelo']}", "Cliente": nombre_cli, "Telefono": tel, "Alerta": "⚡ Recambio de Bujias", "Detalle": f"Faltan aprox. {rest_buj:,} km", "Mensaje": f"Hola {nombre_cli}! Te recordamos desde el Centro Tecnico que tu {v['marca']} {v['modelo']} ({v['patente']}) esta proximo al recambio de bujias ({km:,} km). Queres que reservemos un turno?"})
             if v['intervalo_aceite_km'] and v['intervalo_aceite_km'] > 0:
                 rest_aceite = v['intervalo_aceite_km'] - (km % v['intervalo_aceite_km'])
                 if rest_aceite <= 1500:
-                    alertas_generadas.append({"Patente": v['patente'], "Vehiculo": f"{v['marca']} {v['modelo']}", "Cliente": nombre_cli, "Telefono": tel, "Alerta": "🛢️ Service Aceite y Filtros", "Detalle": f"Faltan aprox. {rest_aceite:,} km", "Mensaje": f"Hola {nombre_cli}! Tu {v['marca']} {v['modelo']} ({v['patente']}) esta proximo a cumplir el intervalo de cambio de aceite y filtros ({km:,} km)."})
+                    alertas_generadas.append({"Patente": v['patente'], "Vehiculo": f"{v['marca']} {v['modelo']}", "Cliente": nombre_cli, "Telefono": tel, "Alerta": "🛢️ Service Aceite y Filtros", "Detalle": f"Faltan aprox. {rest_aceite:,} km", "Mensaje": f"Hola {nombre_cli}! Tu {v['marca']} {v['modelo']} ({v['patente']}) esta proximo al service de aceite y filtros ({km:,} km)."})
             if v['intervalo_distribucion_km'] and v['intervalo_distribucion_km'] > 0:
                 rest_dist = v['intervalo_distribucion_km'] - (km % v['intervalo_distribucion_km'])
                 if rest_dist <= 5000:
-                    alertas_generadas.append({"Patente": v['patente'], "Vehiculo": f"{v['marca']} {v['modelo']}", "Cliente": nombre_cli, "Telefono": tel, "Alerta": "⚙️ Kit de Distribucion", "Detalle": f"Faltan aprox. {rest_dist:,} km", "Mensaje": f"Hola {nombre_cli}! Tu {v['marca']} {v['modelo']} ({v['patente']}) esta proximo al reemplazo recomendado de correa de distribucion ({km:,} km)."})
+                    alertas_generadas.append({"Patente": v['patente'], "Vehiculo": f"{v['marca']} {v['modelo']}", "Cliente": nombre_cli, "Telefono": tel, "Alerta": "⚙️ Correa de Distribucion", "Detalle": f"Faltan aprox. {rest_dist:,} km", "Mensaje": f"Hola {nombre_cli}! Tu {v['marca']} {v['modelo']} ({v['patente']}) esta proximo al reemplazo de correa de distribucion ({km:,} km)."})
         if alertas_generadas:
-            st.write(f"Se encontraron **{len(alertas_generadas)} alertas** para gestionar:")
+            st.write(f"Se encontraron **{len(alertas_generadas)} alertas**:")
             for al in alertas_generadas:
-                col1, col2, col3 = st.columns([2, 3, 2])
-                col1.write(f"**{al['Vehiculo']}** (`{al['Patente']}`)\\n*{al['Cliente']}*")
-                col2.write(f"**{al['Alerta']}**\\n{al['Detalle']}")
+                st.markdown(f"**{al['Vehiculo']}** (`{al['Patente']}`) — *{al['Cliente']}*")
+                st.write(f"**{al['Alerta']}** — {al['Detalle']}")
                 link_wa = "https://wa.me/" + al['Telefono'] + "?text=" + urllib.parse.quote(al['Mensaje'])
-                col3.markdown(f'<a href="{link_wa}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">📲 Enviar WhatsApp</button></a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="{link_wa}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:15px;">📲 Enviar WhatsApp</button></a>', unsafe_allow_html=True)
                 st.divider()
         else:
-            st.success("🎉 ¡Excelente! No hay vehiculos con alertas pendientes.")
+            st.success("🎉 No hay vehiculos con alertas pendientes.")
     conn.close()
 
-# 5. PRESUPUESTOS
+# -------------------------------------------------------------
+# 5. PRESUPUESTOS WHATSAPP
+# -------------------------------------------------------------
 elif opcion == "💼 Presupuestos WhatsApp":
-    st.title("💼 Presupuestador Tecnico con Enlace WhatsApp")
+    st.title("💼 Presupuestador Tecnico")
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT v.patente, v.marca, v.modelo, c.nombre, c.telefono FROM vehiculos v LEFT JOIN clientes c ON v.cliente_id = c.id ORDER BY v.patente")
@@ -499,23 +583,25 @@ elif opcion == "💼 Presupuestos WhatsApp":
         dv = mapa_vp[sel_vp]
         with st.form("form_presupuesto"):
             cat_p = st.selectbox("Especialidad:", CATEGORIAS_TALLER)
-            det_p = st.text_area("Detalle de mano de obra y procedimientos:")
-            rep_p = st.text_area("Detalle de repuestos y materiales:")
+            det_p = st.text_area("Detalle de mano de obra:")
+            rep_p = st.text_area("Detalle de repuestos:")
             val_p = st.number_input("Validez (dias):", value=15, min_value=1)
             tot_p = st.number_input("Total ($):", min_value=0.0, step=1000.0)
-            if st.form_submit_button("Generar Presupuesto"):
+            if st.form_submit_button("Generar y Guardar Presupuesto"):
                 if tot_p > 0:
                     cursor.execute("INSERT INTO presupuestos (patente, fecha_emision, categoria, validez_dias, detalle_trabajo, repuestos, total) VALUES (?, ?, ?, ?, ?, ?, ?)", (dv['patente'], str(date.today()), cat_p, int(val_p), det_p, rep_p, float(tot_p)))
                     conn.commit()
-                    texto_ws = "*PRESUPUESTO TECNICO*\\n" + "🚗 *Vehiculo:* " + str(dv['marca']) + " " + str(dv['modelo']) + " (" + str(dv['patente']) + ")\\n" + "🔧 *Trabajo:* " + str(cat_p) + "\\n\\n" + "*Procedimiento:*\\n" + str(det_p) + "\\n\\n" + "*Repuestos / Insumos:*\\n" + str(rep_p) + "\\n\\n" + f"💵 *TOTAL:* ${tot_p:,.2f}\\n" + f"⏳ *Validez:* {val_p} dias."
+                    texto_ws = "*PRESUPUESTO TECNICO*\n" + "🚗 *Vehiculo:* " + str(dv['marca']) + " " + str(dv['modelo']) + " (" + str(dv['patente']) + ")\n" + "🔧 *Trabajo:* " + str(cat_p) + "\n\n" + "*Procedimiento:*\n" + str(det_p) + "\n\n" + "*Repuestos / Insumos:*\n" + str(rep_p) + "\n\n" + f"💵 *TOTAL:* ${tot_p:,.2f}\n" + f"⏳ *Validez:* {val_p} dias."
                     link_presu = "https://wa.me/" + str(dv['telefono']).replace('+', '').replace('-', '').replace(' ', '').strip() + "?text=" + urllib.parse.quote(texto_ws)
                     st.success("✅ Presupuesto guardado.")
-                    st.markdown(f'<a href="{link_presu}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">📲 Enviar por WhatsApp</button></a>', unsafe_allow_html=True)
+                    st.markdown(f'<a href="{link_presu}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">📲 Enviar por WhatsApp</button></a>', unsafe_allow_html=True)
     conn.close()
 
+# -------------------------------------------------------------
 # 6. HISTORIAL GENERAL
+# -------------------------------------------------------------
 elif opcion == "📊 Historial General":
-    st.title("📊 Registro Historico de Trabajos del Taller")
+    st.title("📊 Registro Historico de Trabajos")
     conn = get_db()
     df_taller = pd.read_sql_query("SELECT s.fecha AS Fecha, s.patente AS Patente, v.marca AS Marca, v.modelo AS Modelo, s.categoria AS Especialidad, s.km_servicio AS KM, s.trabajo_realizado AS Trabajo, s.garantia AS Garantia, s.costo_total AS Total FROM servicios_taller s LEFT JOIN vehiculos v ON s.patente = v.patente ORDER BY s.fecha DESC", conn)
     conn.close()
@@ -523,11 +609,11 @@ elif opcion == "📊 Historial General":
         st.dataframe(df_taller, use_container_width=True)
     else:
         st.info("No hay registros en el historial todavia.")
-"""
+'''
 
 with open("app.py", "w", encoding="utf-8") as f:
-    f.write(code_content)
+    f.write(mobile_app_code)
 
 import py_compile
 py_compile.compile("app.py", doraise=True)
-print("SUCCESS: app.py compiled with 0 errors via Python 3.11 engine.")
+print("Mobile-optimized app.py compiled with 0 errors!")
