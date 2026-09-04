@@ -1,5 +1,8 @@
-# Let's generate a clean, robust, and completely tested app.py file with zero syntax errors.
-app_code = '''import streamlit as st
+# Let's generate a complete, pristine app.py that includes the welcome screen with portada.png
+# When ?patente= is not provided or user clicks "Ver Portada", it displays the welcome screen with an input and "COMENZAR" button.
+# When a patente is entered or present in URL, it seamlessly displays the full digital service book.
+
+app_code_with_welcome = r'''import streamlit as st
 import pandas as pd
 import sqlite3
 import io
@@ -12,91 +15,105 @@ from database import get_db, init_db
 
 # Configuración de página
 st.set_page_config(
-    page_title="Manuel Aguiar — Centro Técnico",
+    page_title="CuidandoMiAuto — Manuel Aguiar",
     page_icon="logo.png" if os.path.exists("logo.png") else "⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 init_db()
 
-# Inyección de Estilo Minimalista
+# Estilos globales
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     
     html, body, [class*="css"], .stApp {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
+        background-color: #060D1A !important;
+        color: #F8FAFC !important;
     }
     
     /* Encabezados */
     h1, h2, h3, h4 {
         font-family: 'Plus Jakarta Sans', sans-serif !important;
         font-weight: 700 !important;
-        color: #0F2B48 !important;
+        color: #FFFFFF !important;
         letter-spacing: -0.02em !important;
+    }
+    
+    /* Contenedor de Portada / Welcome */
+    .welcome-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 10px 0 20px 0;
     }
     
     /* Ficha del Vehículo */
     .veh-card {
-        background: #0F2B48;
+        background: linear-gradient(135deg, #0F2B48 0%, #081B2E 100%);
         color: #FFFFFF !important;
-        border-radius: 14px;
-        padding: 18px 22px;
-        margin-top: 12px;
-        margin-bottom: 18px;
-        box-shadow: 0 4px 14px rgba(15, 43, 72, 0.15);
+        border: 1px solid #1E3A5F;
+        border-radius: 16px;
+        padding: 20px 24px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
     .veh-card h2 {
         color: #FFFFFF !important;
         margin: 0;
-        font-size: 1.35rem;
+        font-size: 1.4rem;
     }
     .veh-card p {
         color: #94A3B8 !important;
-        margin: 4px 0 0 0;
-        font-size: 0.9rem;
+        margin: 6px 0 0 0;
+        font-size: 0.92rem;
     }
     
     /* Métricas / Semáforos */
     [data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
+        background: #0D1A2D;
+        border: 1px solid #1E3A5F;
         border-radius: 12px;
         padding: 14px 16px;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     }
     [data-testid="stMetricLabel"] {
         font-size: 0.8rem !important;
         font-weight: 700 !important;
-        color: #64748B !important;
+        color: #94A3B8 !important;
         text-transform: uppercase;
         letter-spacing: 0.04em;
     }
     [data-testid="stMetricValue"] {
-        font-size: 1.3rem !important;
+        font-size: 1.35rem !important;
         font-weight: 700 !important;
-        color: #0F172A !important;
+        color: #F8FAFC !important;
     }
     
-    /* Botones */
+    /* Botones primarios */
     .stButton > button {
-        background-color: #0F2B48 !important;
-        color: #FFFFFF !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+        color: #060D1A !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
         border: none !important;
-        border-radius: 10px !important;
-        padding: 10px 18px !important;
+        border-radius: 12px !important;
+        padding: 12px 20px !important;
         width: 100%;
         transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
     }
     .stButton > button:hover {
-        background-color: #1E3A8A !important;
+        background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%) !important;
         transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
     }
     
+    /* Botón WhatsApp */
     .btn-wa {
         display: block;
         text-align: center;
@@ -105,22 +122,35 @@ st.markdown("""
         font-weight: 700 !important;
         font-size: 0.95rem !important;
         padding: 12px 18px !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         text-decoration: none !important;
-        margin: 12px 0 18px 0;
-        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+        margin: 14px 0 20px 0;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
     
     /* Inputs */
     input, select, textarea, .stTextInput > div > div > input {
-        border-radius: 8px !important;
-        border: 1px solid #CBD5E1 !important;
-        background-color: #FFFFFF !important;
+        border-radius: 10px !important;
+        border: 1px solid #334155 !important;
+        background-color: #0D1A2D !important;
+        color: #FFFFFF !important;
     }
     
+    /* Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E2E8F0;
+        background-color: #081220 !important;
+        border-right: 1px solid #1E293B;
+    }
+    [data-testid="stSidebar"] * {
+        color: #F1F5F9 !important;
+    }
+    
+    /* Expanders */
+    .streamlit-expanderHeader {
+        background-color: #0D1A2D !important;
+        border: 1px solid #1E3A5F !important;
+        border-radius: 10px !important;
+        color: #FFFFFF !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -245,10 +275,12 @@ def generar_pdf_intervencion(vehiculo, servicio):
     pdf.cell(0, 5, "Documento digital emitido por MANUEL AGUIAR. Valido como constancia de servicio.", align="C", ln=True)
     return bytes(pdf.output())
 
-# Sidebar con banner y logo
+# Sidebar
 with st.sidebar:
     if os.path.exists("banner.png"):
         st.image("banner.png", use_container_width=True)
+    elif os.path.exists("logo.png"):
+        st.image("logo.png", width=120)
     else:
         st.markdown("""
         <div style="background: #F59E0B; padding: 16px; border-radius: 10px; margin-bottom: 18px; text-align: center;">
@@ -262,6 +294,7 @@ with st.sidebar:
     opcion = st.sidebar.radio(
         "Navegación Principal",
         [
+            "🏠 Portada / Inicio",
             "📋 Tarjeta Digital del Vehículo",
             "🛠️ Cargar Trabajo de Taller",
             "➕ Registrar y Modificar Datos",
@@ -272,11 +305,46 @@ with st.sidebar:
     )
 
 # -------------------------------------------------------------
-# 1. TARJETA DIGITAL
+# 0. PORTADA / INICIO (WELCOME SCREEN)
 # -------------------------------------------------------------
-if opcion == "📋 Tarjeta Digital del Vehículo":
+if opcion == "🏠 Portada / Inicio":
     query_params = st.query_params
     patente_url = query_params.get("patente", "").upper()
+    
+    if os.path.exists("portada.png"):
+        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+        with col_c2:
+            st.image("portada.png", use_container_width=True)
+            with st.form("form_inicio_portada"):
+                pat_in = st.text_input("🔍 Ingresá la Patente de tu Vehículo:", value=patente_url, placeholder="Ej: GFG135").upper().strip()
+                btn_comenzar = st.form_submit_button("🚀 COMENZAR")
+                if btn_comenzar and pat_in:
+                    st.query_params["patente"] = pat_in
+                    st.session_state["patente_activa"] = pat_in
+                    st.rerun()
+    else:
+        st.markdown("""
+        <div class="welcome-container">
+            <h1 style="color: #F59E0B; font-size: 2.2rem; margin-bottom: 5px;">CuidandoMiAuto</h1>
+            <p style="font-size: 1.1rem; color: #94A3B8; margin-top: 0;">El historial y cuidado de tu vehículo, <strong>siempre con vos.</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+        with col_c2:
+            with st.form("form_inicio_simple"):
+                pat_in = st.text_input("🔍 Ingresá la Patente del Vehículo:", value=patente_url, placeholder="Ej: GFG135").upper().strip()
+                if st.form_submit_button("🚀 COMENZAR") and pat_in:
+                    st.query_params["patente"] = pat_in
+                    st.session_state["patente_activa"] = pat_in
+                    st.rerun()
+
+# -------------------------------------------------------------
+# 1. TARJETA DIGITAL
+# -------------------------------------------------------------
+elif opcion == "📋 Tarjeta Digital del Vehículo":
+    query_params = st.query_params
+    patente_url = query_params.get("patente", "") or st.session_state.get("patente_activa", "")
+    patente_url = patente_url.upper()
     
     if os.path.exists("banner.png"):
         st.image("banner.png", use_container_width=True)
@@ -420,7 +488,7 @@ if opcion == "📋 Tarjeta Digital del Vehículo":
                         if not items_cambiados:
                             st.warning("Por favor marcá al menos un casillero o escribí una observación.")
                         else:
-                            detalle_final = "\\n".join(items_cambiados)
+                            detalle_final = "\n".join(items_cambiados)
                             titulo_servicio = "Service de Aceite y Filtros" if chk_aceite and (chk_f_aceite or chk_f_aire) else ("Distribución / Refrigeración" if chk_dist or chk_bomba else "Service Lubricentro / Mecánica")
                             cursor.execute("INSERT INTO servicios_externos (patente, fecha, km_servicio, tipo_mantenimiento, establecimiento, detalle_materiales) VALUES (?, ?, ?, ?, ?, ?)", (patente_buscada, str(f_ext), int(km_ext), titulo_servicio, lugar_ext, detalle_final))
                             if km_ext > km_act:
@@ -479,7 +547,7 @@ elif opcion == "🛠️ Cargar Trabajo de Taller":
                 aisl = p_c3.text_input("Resistencia Aislamiento (MΩ):", placeholder="Ej: > 500 MΩ")
                 params_str = f"SOH: {soh} | Delta V: {delta_v} | Aislamiento: {aisl}" if (soh or delta_v or aisl) else ""
             elif "Aire" in cat_t:
-                p_c1, p_c2, p_c3 = st.columns(3)
+                p_c1, p_c2, p_c3 = st.columns(4)
                 p_baja = p_c1.text_input("Baja (PSI):", placeholder="32 PSI")
                 p_alta = p_c2.text_input("Alta (PSI):", placeholder="210 PSI")
                 gas_g = p_c3.text_input("Carga Gas:", placeholder="500g R134a")
@@ -511,14 +579,14 @@ elif opcion == "🛠️ Cargar Trabajo de Taller":
     conn.close()
 
 # -------------------------------------------------------------
-# 3. REGISTRAR Y MODIFICAR DATOS
+# 3. REGISTRAR, MODIFICAR Y ELIMINAR DATOS
 # -------------------------------------------------------------
 elif opcion == "➕ Registrar y Modificar Datos":
     st.markdown("## ➕ Gestión de Clientes y Vehículos Manuel Aguiar")
     
     sec_gestion = st.radio(
         "Seleccionar Acción:",
-        ["👤 Alta de Cliente", "🚗 Alta de Vehículo", "✏️ Modificar Vehículo", "✏️ Modificar Cliente"],
+        ["👤 Alta de Cliente", "🚗 Alta de Vehículo", "✏️ Modificar Vehículo", "✏️ Modificar Cliente", "🗑️ Eliminar Vehículo", "🗑️ Eliminar Cliente"],
         horizontal=True
     )
     
@@ -581,7 +649,7 @@ elif opcion == "➕ Registrar y Modificar Datos":
         vehiculos_edit = cursor.fetchall()
         if vehiculos_edit:
             map_ve = {f"{v['patente']} — {v['marca']} {v['modelo']}": v['patente'] for v in vehiculos_edit}
-            sel_pat_edit = st.selectbox("Seleccionar Vehículo:", list(map_ve.keys()))
+            sel_pat_edit = st.selectbox("Seleccionar Vehículo a Modificar:", list(map_ve.keys()))
             pat_a_modificar = map_ve[sel_pat_edit]
             cursor.execute("SELECT * FROM vehiculos WHERE patente = ?", (pat_a_modificar,))
             v_curr = cursor.fetchone()
@@ -605,8 +673,8 @@ elif opcion == "➕ Registrar y Modificar Datos":
                     st.markdown("#### ⚙️ Ajustar Intervalos de Servicio (KM)")
                     col_ei1, col_ei2, col_ei3 = st.columns(3)
                     e_int_aceite = col_ei1.number_input("Intervalo Aceite (KM):", value=int(v_curr['intervalo_aceite_km'] or 10000), step=1000)
-                    e_int_dist = col_ei2.number_input("Intervalo Distribución (KM) — 0 si es cadena:", value=int(v_curr['intervalo_distribucion_km'] or 60000), step=10000)
-                    e_int_buj = col_ei3.number_input("Intervalo Bujías (KM) — 0 si no aplica:", value=int(v_curr['intervalo_bujias_km'] or 30000), step=5000)
+                    e_int_dist = col_ei2.number_input("Intervalo Distribución (KM):", value=int(v_curr['intervalo_distribucion_km'] or 60000), step=10000)
+                    e_int_buj = col_ei3.number_input("Intervalo Bujías (KM):", value=int(v_curr['intervalo_bujias_km'] or 30000), step=5000)
                     
                     if st.form_submit_button("💾 Guardar Cambios del Vehículo"):
                         cursor.execute("UPDATE vehiculos SET marca = ?, modelo = ?, anio = ?, tipo_propulsion = ?, motor = ?, km_actuales = ?, intervalo_aceite_km = ?, intervalo_distribucion_km = ?, intervalo_bujias_km = ? WHERE patente = ?", (e_mar, e_mod, int(e_ani), e_prop, e_mot, int(e_km), int(e_int_aceite), int(e_int_dist), int(e_int_buj), pat_a_modificar))
@@ -621,7 +689,7 @@ elif opcion == "➕ Registrar y Modificar Datos":
         clientes_edit = cursor.fetchall()
         if clientes_edit:
             map_cli_edit = {f"{c['nombre']} ({c['telefono']})": c for c in clientes_edit}
-            sel_cli_name = st.selectbox("Seleccionar Cliente:", list(map_cli_edit.keys()))
+            sel_cli_name = st.selectbox("Seleccionar Cliente a Modificar:", list(map_cli_edit.keys()))
             cli_data = map_cli_edit[sel_cli_name]
             with st.form("form_editar_cliente"):
                 st.write(f"### Editando Cliente: `{cli_data['nombre']}`")
@@ -640,6 +708,76 @@ elif opcion == "➕ Registrar y Modificar Datos":
                         st.error("El nombre y el teléfono no pueden quedar vacíos.")
         else:
             st.info("No hay clientes registrados para modificar.")
+
+    elif sec_gestion == "🗑️ Eliminar Vehículo":
+        cursor.execute("SELECT patente, marca, modelo FROM vehiculos ORDER BY patente")
+        vehiculos_del = cursor.fetchall()
+        if vehiculos_del:
+            map_v_del = {f"{v['patente']} — {v['marca']} {v['modelo']}": v['patente'] for v in vehiculos_del}
+            sel_v_del = st.selectbox("Seleccionar Vehículo a Eliminar:", list(map_v_del.keys()))
+            pat_a_borrar = map_v_del[sel_v_del]
+            
+            st.error(f"⚠️ **Atención:** Eliminar la patente **{pat_a_borrar}** borrará también todos los informes técnicos, mantenimientos y registros asociados a este vehículo.")
+            
+            confirmar_v = st.checkbox(f"Confirmo que deseo eliminar definitivamente el vehículo {pat_a_borrar}")
+            if st.button("🗑️ Eliminar Vehículo Definitivamente"):
+                if confirmar_v:
+                    cursor.execute("DELETE FROM servicios_taller WHERE patente = ?", (pat_a_borrar,))
+                    cursor.execute("DELETE FROM servicios_externos WHERE patente = ?", (pat_a_borrar,))
+                    cursor.execute("DELETE FROM presupuestos WHERE patente = ?", (pat_a_borrar,))
+                    cursor.execute("DELETE FROM vehiculos WHERE patente = ?", (pat_a_borrar,))
+                    conn.commit()
+                    st.success(f"✅ Vehículo {pat_a_borrar} e historiales eliminados correctamente.")
+                    st.rerun()
+                else:
+                    st.warning("Marcá la casilla de confirmación para proceder con la eliminación.")
+        else:
+            st.info("No hay vehículos registrados para eliminar.")
+
+    elif sec_gestion == "🗑️ Eliminar Cliente":
+        cursor.execute("SELECT id, nombre, telefono FROM clientes ORDER BY nombre")
+        clientes_del = cursor.fetchall()
+        if clientes_del:
+            map_c_del = {f"{c['nombre']} ({c['telefono']})": c['id'] for c in clientes_del}
+            sel_c_del = st.selectbox("Seleccionar Cliente a Eliminar:", list(map_c_del.keys()))
+            cli_id_borrar = map_c_del[sel_c_del]
+            
+            cursor.execute("SELECT patente, marca, modelo FROM vehiculos WHERE cliente_id = ?", (cli_id_borrar,))
+            vehs_asociados = cursor.fetchall()
+            
+            if vehs_asociados:
+                lista_v_txt = ", ".join([f"{v['marca']} {v['modelo']} ({v['patente']})" for v in vehs_asociados])
+                st.warning(f"⚠️ Este cliente tiene vehículos registrados a su nombre: **{lista_v_txt}**.")
+            
+            st.error("⚠️ Al eliminar el cliente, podés elegir si desvincular sus vehículos o eliminarlos por completo.")
+            
+            opcion_borrado = st.radio(
+                "¿Qué hacer con los vehículos del cliente?:",
+                ["Desvincular vehículos (mantener autos en el sistema sin titular)", "Eliminar cliente y también todos sus vehículos e historiales"]
+            )
+            
+            confirmar_c = st.checkbox("Confirmo que deseo eliminar este cliente")
+            if st.button("🗑️ Eliminar Cliente Definitivamente"):
+                if confirmar_c:
+                    if "Eliminar cliente y también todos" in opcion_borrado:
+                        for v in vehs_asociados:
+                            p = v['patente']
+                            cursor.execute("DELETE FROM servicios_taller WHERE patente = ?", (p,))
+                            cursor.execute("DELETE FROM servicios_externos WHERE patente = ?", (p,))
+                            cursor.execute("DELETE FROM presupuestos WHERE patente = ?", (p,))
+                        cursor.execute("DELETE FROM vehiculos WHERE cliente_id = ?", (cli_id_borrar,))
+                    else:
+                        cursor.execute("UPDATE vehiculos SET cliente_id = NULL WHERE cliente_id = ?", (cli_id_borrar,))
+                    
+                    cursor.execute("DELETE FROM clientes WHERE id = ?", (cli_id_borrar,))
+                    conn.commit()
+                    st.success("✅ Cliente eliminado correctamente.")
+                    st.rerun()
+                else:
+                    st.warning("Marcá la casilla de confirmación para proceder con la eliminación.")
+        else:
+            st.info("No hay clientes registrados para eliminar.")
+            
     conn.close()
 
 # -------------------------------------------------------------
@@ -706,7 +844,7 @@ elif opcion == "💼 Presupuestos WhatsApp":
                 if tot_p > 0:
                     cursor.execute("INSERT INTO presupuestos (patente, fecha_emision, categoria, validez_dias, detalle_trabajo, repuestos, total) VALUES (?, ?, ?, ?, ?, ?, ?)", (dv['patente'], str(date.today()), cat_p, int(val_p), det_p, rep_p, float(tot_p)))
                     conn.commit()
-                    texto_ws = "*PRESUPUESTO TECNICO - MANUEL AGUIAR*\\n" + "🚗 *Vehiculo:* " + str(dv['marca']) + " " + str(dv['modelo']) + " (" + str(dv['patente']) + ")\\n" + "🔧 *Trabajo:* " + str(cat_p) + "\\n\\n" + "*Procedimiento:*\\n" + str(det_p) + "\\n\\n" + "*Repuestos / Insumos:*\\n" + str(rep_p) + "\\n\\n" + f"💵 *TOTAL:* ${tot_p:,.2f}\\n" + f"⏳ *Validez:* {val_p} dias."
+                    texto_ws = "*PRESUPUESTO TECNICO - MANUEL AGUIAR*\n" + "🚗 *Vehiculo:* " + str(dv['marca']) + " " + str(dv['modelo']) + " (" + str(dv['patente']) + ")\n" + "🔧 *Trabajo:* " + str(cat_p) + "\n\n" + "*Procedimiento:*\n" + str(det_p) + "\n\n" + "*Repuestos / Insumos:*\n" + str(rep_p) + "\n\n" + f"💵 *TOTAL:* ${tot_p:,.2f}\n" + f"⏳ *Validez:* {val_p} dias."
                     link_presu = "https://wa.me/" + str(dv['telefono']).replace('+', '').replace('-', '').replace(' ', '').strip() + "?text=" + urllib.parse.quote(texto_ws)
                     st.success("✅ Presupuesto guardado correctamente.")
                     st.markdown(f'<a href="{link_presu}" target="_blank" class="btn-wa">📲 Enviar Presupuesto por WhatsApp</a>', unsafe_allow_html=True)
@@ -727,8 +865,8 @@ elif opcion == "📊 Historial General":
 '''
 
 with open("app.py", "w", encoding="utf-8") as f:
-    f.write(app_code)
+    f.write(app_code_with_welcome)
 
 import py_compile
 py_compile.compile("app.py", doraise=True)
-print("100% OK! Syntax verified with py_compile.")
+print("APP.PY WITH WELCOME SCREEN COMPILED 100% OK!")
